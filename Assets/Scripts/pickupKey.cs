@@ -7,6 +7,9 @@ public class pickupKey : MonoBehaviour
     public GameObject inttext, key, spookystuff;
     public AudioSource pickup;
     public bool interactable, scaryEvent;
+    
+    // Añadir referencia al trigger de narración
+    public GameObject bloodNarrationTrigger;
 
     void OnTriggerStay(Collider other)
     {
@@ -16,6 +19,7 @@ public class pickupKey : MonoBehaviour
             interactable = true;
         }
     }
+    
     void OnTriggerExit(Collider other)
     {
         if (other.CompareTag("MainCamera"))
@@ -24,6 +28,7 @@ public class pickupKey : MonoBehaviour
             interactable = false;
         }
     }
+    
     void Update()
     {
         if (interactable == true)
@@ -33,10 +38,18 @@ public class pickupKey : MonoBehaviour
                 inttext.SetActive(false);
                 interactable = false;
                 //pickup.Play();
+                
                 if(scaryEvent == true)
                 {
                     spookystuff.SetActive(true);
+                    
+                    // Activar el trigger de narración de sangre
+                    if (bloodNarrationTrigger != null)
+                    {
+                        bloodNarrationTrigger.SetActive(true);
+                    }
                 }
+                
                 key.SetActive(false);
             }
         }
