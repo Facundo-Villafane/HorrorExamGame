@@ -6,18 +6,18 @@ using UnityEngine.AI;
 public class EnemyPatrol : MonoBehaviour
 {
     // Referencias a componentes
-    [SerializeField] private NavMeshAgent agent;
-    [SerializeField] private Animator animator;
+    public NavMeshAgent agent;
+    public Animator animator;
     
     // Puntos de patrulla
-    [SerializeField] private Transform[] patrolPoints;
+    public Transform[] patrolPoints;
     
     // Configuración de comportamiento
-    [SerializeField] private float patrolSpeed = 3f;
-    [SerializeField] private float chaseSpeed = 5f;
-    [SerializeField] private float attackRange = 2f;
-    [SerializeField] private float detectionRange = 10f;
-    [SerializeField] private float waitTimeAtPoint = 2f;
+    public float patrolSpeed = 3f;
+    public float chaseSpeed = 5f;
+    public float attackRange = 2f;
+    public float detectionRange = 10f;
+    public float waitTimeAtPoint = 2f;
     
     // Estado actual
     private enum State { Patrolling, Chasing, Attacking, Waiting }
@@ -27,6 +27,9 @@ public class EnemyPatrol : MonoBehaviour
     private int currentPatrolIndex = 0;
     private Transform player;
     private float waitTimer = 0f;
+    
+    // Para evitar que la animación de caminar se reinicie
+    private bool hasReachedDestination = false;
     
     void Start()
     {
@@ -49,7 +52,15 @@ public class EnemyPatrol : MonoBehaviour
         
         // Iniciar en modo patrulla
         currentState = State.Patrolling;
-        GoToNextPatrolPoint();
+        hasReachedDestination = false;
+        
+        // Forzar la animación de caminar al inicio
+        SetAnimationState(false, true, false);
+        
+        // Configurar el primer destino
+        agent.isStopped = false;
+        agent.speed = patrolSpeed;
+        agent.SetDestination(patrolPoints[0].position);
     }
     
     void Update()
@@ -58,12 +69,36 @@ public class EnemyPatrol : MonoBehaviour
         if (player == null)
             return;
         
+        // Comprobar si estamos realmente moviéndonos
+        // Esto soluciona el problema de las animaciones saltando
+        bool isActuallyMoving = agent.velocity.magnitude > 0.15f;
+        
+        // Actualizar animación basada en el movimiento actual
+        if (currentState != State.Attacking && currentState != State.Waiting)
+        {
+            if (isActuallyMoving && !animator.GetBool("isChasing"))
+            {
+                SetAnimationState(false, true, false);
+            }
+            else if (!isActuallyMoving && !animator.GetBool("isIdle") && hasReachedDestination)
+            {
+                SetAnimationState(true, false, false);
+            }
+        }
+        
         // Si el enemigo está esperando
         if (currentState == State.Waiting)
         {
+            // Asegurar que está reproduciendo la animación correcta
+            if (!animator.GetBool("isIdle"))
+            {
+                SetAnimationState(true, false, false);
+            }
+            
             waitTimer += Time.deltaTime;
             if (waitTimer >= waitTimeAtPoint)
             {
+                hasReachedDestination = false;
                 currentState = State.Patrolling;
                 GoToNextPatrolPoint();
             }
@@ -78,33 +113,43 @@ public class EnemyPatrol : MonoBehaviour
             // Si no estábamos persiguiendo, empezar persecución
             if (currentState != State.Chasing)
             {
+                hasReachedDestination = false;
                 currentState = State.Chasing;
                 agent.speed = chaseSpeed;
-                SetAnimation("run");
+                agent.isStopped = false;
+                
+                // Establecer animación de persecución solo si no está ya reproduciéndola
+                if (!animator.GetBool("isChasing"))
+                {
+                    SetAnimationState(false, true, false);
+                }
             }
+            
+            // Perseguir al jugador
+            agent.SetDestination(player.position);
             
             // Si estamos lo suficientemente cerca para atacar
             if (distanceToPlayer <= attackRange)
             {
                 currentState = State.Attacking;
                 agent.isStopped = true;
-                SetAnimation("attack");
+                
+                // Establecer animación de ataque
+                SetAnimationState(false, false, true);
                 StartCoroutine(ResetAfterAttack());
-            }
-            else
-            {
-                // Perseguir al jugador
-                agent.SetDestination(player.position);
             }
         }
         else if (currentState == State.Patrolling)
         {
             // Si estamos patrullando y hemos llegado al destino
-            if (!agent.pathPending && agent.remainingDistance < 0.5f)
+            if (!agent.pathPending && agent.remainingDistance < 0.5f && !hasReachedDestination)
             {
+                hasReachedDestination = true;
                 currentState = State.Waiting;
                 agent.isStopped = true;
-                SetAnimation("idle");
+                
+                // Establecer animación de idle
+                SetAnimationState(true, false, false);
                 waitTimer = 0f;
             }
         }
@@ -112,15 +157,17 @@ public class EnemyPatrol : MonoBehaviour
     
     void GoToNextPatrolPoint()
     {
+        // Incrementar el índice de patrulla
+        currentPatrolIndex = (currentPatrolIndex + 1) % patrolPoints.Length;
+        
         // Moverse al siguiente punto de patrulla
         agent.isStopped = false;
         agent.speed = patrolSpeed;
         
         agent.SetDestination(patrolPoints[currentPatrolIndex].position);
-        SetAnimation("walk");
         
-        // Pasar al siguiente punto para la próxima vez
-        currentPatrolIndex = (currentPatrolIndex + 1) % patrolPoints.Length;
+        // Establecer animación de caminar
+        SetAnimationState(false, true, false);
     }
     
     IEnumerator ResetAfterAttack()
@@ -135,29 +182,39 @@ public class EnemyPatrol : MonoBehaviour
             
             if (distanceToPlayer <= detectionRange)
             {
+                hasReachedDestination = false;
                 currentState = State.Chasing;
                 agent.isStopped = false;
                 agent.speed = chaseSpeed;
-                SetAnimation("run");
+                SetAnimationState(false, true, false);
+                agent.SetDestination(player.position);
             }
             else
             {
+                hasReachedDestination = false;
                 currentState = State.Patrolling;
                 GoToNextPatrolPoint();
             }
         }
     }
     
-    void SetAnimation(string animName)
+    // Método para establecer las animaciones
+    void SetAnimationState(bool isIdle, bool isChasing, bool isAttacking)
     {
-        // Resetear todas las animaciones
-        animator.ResetTrigger("idle");
-        animator.ResetTrigger("walk");
-        animator.ResetTrigger("run");
-        animator.ResetTrigger("attack");
+        // Utilizar transiciones para evitar saltos en la animación
         
-        // Activar la animación deseada
-        animator.SetTrigger(animName);
+        // Solo cambiar los estados si realmente son diferentes de los actuales
+        bool idleChanged = animator.GetBool("isIdle") != isIdle;
+        bool chasingChanged = animator.GetBool("isChasing") != isChasing;
+        bool attackingChanged = animator.GetBool("isAttacking") != isAttacking;
+        
+        if (idleChanged || chasingChanged || attackingChanged)
+        {
+            // Cambiar gradualmente para evitar saltos en la animación
+            animator.SetBool("isIdle", isIdle);
+            animator.SetBool("isChasing", isChasing);
+            animator.SetBool("isAttacking", isAttacking);
+        }
     }
     
     // Para visualizar los rangos en el editor

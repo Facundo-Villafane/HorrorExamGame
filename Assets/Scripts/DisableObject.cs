@@ -12,12 +12,13 @@ public class DisableObject : MonoBehaviour
     {
         if (triggerbased == false)
         {
-            if (Obj.active == true)
+            if (Obj.activeSelf)  
             {
                 StartCoroutine(Disableobj());
             }
         }
     }
+    
     void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player"))
@@ -26,6 +27,7 @@ public class DisableObject : MonoBehaviour
             this.GetComponent<BoxCollider>().enabled = false;
         }
     }
+    
     IEnumerator Disableobj()
     {
         yield return new WaitForSeconds(activeTime);

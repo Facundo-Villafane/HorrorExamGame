@@ -10,9 +10,22 @@ public class settings : MonoBehaviour
     public Toggle chromaticToggle, vignetteToggle, grainToggle;
     public bool inGame;
     public GameObject chromaticCam, vignetteCam, grainCam;
+    
+    // Nuevas variables para el check y regreso al menú de pausa
+    public GameObject checkMarkImage;     // La imagen de check que aparecerá
+    public GameObject pauseMenu;          // Referencia al menu de pausa
+    public GameObject settingsMenu;       // Referencia a este menú de configuración
+    public float checkDisplayTime = 1.0f; // Duración de la marca de verificación
+    private Coroutine saveCoroutine;      // Para controlar la corrutina
 
     void Start()
     {
+        // Asegúrate de que la marca de verificación esté oculta al inicio
+        if (checkMarkImage != null)
+        {
+            checkMarkImage.SetActive(false);
+        }
+        
         if (PlayerPrefs.GetInt("settingsSaved", 0) == 0)
         {
             PlayerPrefs.SetInt("graphics", 0);
@@ -22,6 +35,8 @@ public class settings : MonoBehaviour
             PlayerPrefs.SetInt("vignette", 0);
             PlayerPrefs.SetInt("grain", 0);
         }
+        
+        // El resto de tu código de inicio...
         //Graphics
         if (PlayerPrefs.GetInt("graphics", 2) == 2)
         {
@@ -109,6 +124,82 @@ public class settings : MonoBehaviour
             }
         }
     }
+    
+    // Este método se llama cuando se desactiva el objeto
+    void OnDisable()
+    {
+        // Asegurarnos de que el check esté oculto cuando se desactive el menú
+        if (checkMarkImage != null)
+        {
+            checkMarkImage.SetActive(false);
+        }
+        
+        // Detener cualquier corrutina en progreso
+        if (saveCoroutine != null)
+        {
+            StopCoroutine(saveCoroutine);
+            saveCoroutine = null;
+        }
+    }
+    
+    // Método modificado para guardar configuración
+    public void saveSettings()
+    {
+        PlayerPrefs.SetInt("settingsSaved", 1);
+        PlayerPrefs.Save();
+        
+        // Mostrar la marca de verificación
+        if (checkMarkImage != null)
+        {
+            checkMarkImage.SetActive(true);
+            
+            // Iniciar la corrutina para volver al menú de pausa
+            // Y guardar la referencia para poder detenerla si es necesario
+            if (saveCoroutine != null)
+            {
+                StopCoroutine(saveCoroutine);
+            }
+            saveCoroutine = StartCoroutine(ReturnToPauseMenu());
+        }
+        else
+        {
+            // Si no hay marca de verificación, volver inmediatamente al menú de pausa
+            ReturnToPause();
+        }
+    }
+    
+    // Corrutina para mostrar la marca y volver al menú de pausa
+    IEnumerator ReturnToPauseMenu()
+    {
+        // Esperar el tiempo especificado mientras se muestra la marca
+        yield return new WaitForSeconds(checkDisplayTime);
+        
+        // Ocultar la marca de verificación
+        if (checkMarkImage != null)
+        {
+            checkMarkImage.SetActive(false);
+        }
+        
+        // Volver al menú de pausa
+        ReturnToPause();
+        
+        // Limpiar la referencia a la corrutina
+        saveCoroutine = null;
+    }
+    
+    // Método para volver al menú de pausa
+    void ReturnToPause()
+    {
+        if (pauseMenu != null && settingsMenu != null)
+        {
+            settingsMenu.SetActive(false);
+            pauseMenu.SetActive(true);
+        }
+    }
+    
+    // El resto de tus métodos sin cambios...
+    // (setGraphics, setResolution, setVolume, toggleChromatic, toggleVignette, toggleGrain)
+    
     public void setGraphics()
     {
         if (graphicsDrop.value == 0)
@@ -130,6 +221,7 @@ public class settings : MonoBehaviour
             QualitySettings.SetQualityLevel(2);
         }
     }
+    
     public void setResolution()
     {
         if (resoDrop.value == 0)
@@ -154,12 +246,14 @@ public class settings : MonoBehaviour
             Debug.Log("1080p set");
         }
     }
+    
     public void setVolume()
     {
         PlayerPrefs.SetFloat("mastervolume", volumeSlider.value);
         PlayerPrefs.Save();
         AudioListener.volume = volumeSlider.value;
     }
+    
     public void toggleChromatic()
     {
         if (chromaticToggle.isOn == false)
@@ -181,6 +275,7 @@ public class settings : MonoBehaviour
             }
         }
     }
+    
     public void toggleVignette()
     {
         if (vignetteToggle.isOn == false)
@@ -202,6 +297,7 @@ public class settings : MonoBehaviour
             }
         }
     }
+    
     public void toggleGrain()
     {
         if (grainToggle.isOn == false)
@@ -222,10 +318,5 @@ public class settings : MonoBehaviour
                 grainCam.SetActive(true);
             }
         }
-    }
-    public void saveSettings()
-    {
-        PlayerPrefs.SetInt("settingsSaved", 1);
-        PlayerPrefs.Save();
     }
 }
