@@ -10,6 +10,7 @@ public class GirlEnemyAI : MonoBehaviour
     public Animator animator;
     public AudioSource enemyAudioSource;
     public AudioClip[] enemySounds;
+    public AudioClip attackSound;
     
     // Estados de comportamiento
     public bool isChasing = false;
@@ -23,7 +24,15 @@ public class GirlEnemyAI : MonoBehaviour
     public float attackRange = 2f;
     public float minTimeBetweenSounds = 8f;
     
+    // Variables para el ataque
+    public float attackCooldown = 1.5f;
+    private float lastAttackTime = 0f;
+    public int damageAmount = 1;
+    
     private float lastSoundTime = 0f;
+    
+    // Referencia al script de vida del jugador
+    private PlayerHealth playerHealth;
     
     void Start()
     {
@@ -36,6 +45,12 @@ public class GirlEnemyAI : MonoBehaviour
             
         if (enemyAudioSource == null)
             enemyAudioSource = GetComponent<AudioSource>();
+            
+        // Obtener referencia al script de salud del jugador
+        if (player != null)
+        {
+            playerHealth = player.GetComponent<PlayerHealth>();
+        }
     }
     
     void Update()
@@ -56,6 +71,12 @@ public class GirlEnemyAI : MonoBehaviour
             if (distanceToPlayer < attackRange)
             {
                 isAttacking = true;
+                
+                // Si ha pasado suficiente tiempo desde el último ataque
+                if (Time.time > lastAttackTime + attackCooldown)
+                {
+                    Attack();
+                }
             }
             else
             {
@@ -80,6 +101,26 @@ public class GirlEnemyAI : MonoBehaviour
             {
                 PlayRandomSound();
             }
+        }
+    }
+    
+    // Método para atacar al jugador
+    void Attack()
+    {
+        // Actualizar tiempo del último ataque
+        lastAttackTime = Time.time;
+        
+        // Reproducir sonido de ataque
+        if (attackSound != null && enemyAudioSource != null)
+        {
+            enemyAudioSource.clip = attackSound;
+            enemyAudioSource.Play();
+        }
+        
+        // Infligir daño al jugador
+        if (playerHealth != null)
+        {
+            playerHealth.TakeDamage(damageAmount);
         }
     }
     

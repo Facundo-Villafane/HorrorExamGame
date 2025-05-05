@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class flashlight : MonoBehaviour
 {
-    public GameObject light;
+    public GameObject flashlightLight;
     public bool toggle;
     public AudioSource toggleSound;
 
@@ -12,11 +12,11 @@ public class flashlight : MonoBehaviour
     {
         if (toggle == false)
         {
-            light.SetActive(false);
+            flashlightLight.SetActive(false);
         }
         if (toggle == true)
         {
-            light.SetActive(true);
+            flashlightLight.SetActive(true);
         }
     }
 
@@ -28,11 +28,11 @@ public class flashlight : MonoBehaviour
             //toggleSound.Play();
             if (toggle == false)
             {
-                light.SetActive(false);
+                flashlightLight.SetActive(false);
             }
             if (toggle == true)
             {
-                light.SetActive(true);
+                flashlightLight.SetActive(true);
             }
         }
     }

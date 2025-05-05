@@ -19,6 +19,12 @@ public class EnemyPatrol : MonoBehaviour
     public float detectionRange = 10f;
     public float waitTimeAtPoint = 2f;
     
+    // Sistema de daño
+    public int damageAmount = 1;
+    public float attackCooldown = 1.5f;
+    private float lastAttackTime = 0f;
+    public AudioSource attackSound;
+    
     // Estado actual
     private enum State { Patrolling, Chasing, Attacking, Waiting }
     private State currentState;
@@ -27,6 +33,9 @@ public class EnemyPatrol : MonoBehaviour
     private int currentPatrolIndex = 0;
     private Transform player;
     private float waitTimer = 0f;
+    
+    // Referencia al script de salud del jugador
+    private PlayerHealth playerHealth;
     
     // Para evitar que la animación de caminar se reinicie
     private bool hasReachedDestination = false;
@@ -43,6 +52,10 @@ public class EnemyPatrol : MonoBehaviour
         // Buscar al jugador si no está asignado
         if (player == null)
             player = GameObject.FindGameObjectWithTag("Player")?.transform;
+            
+        // Buscar el script de salud del jugador
+        if (player != null)
+            playerHealth = player.GetComponent<PlayerHealth>();
         
         // Asignar componentes si no están asignados
         if (agent == null)
@@ -131,12 +144,11 @@ public class EnemyPatrol : MonoBehaviour
             // Si estamos lo suficientemente cerca para atacar
             if (distanceToPlayer <= attackRange)
             {
-                currentState = State.Attacking;
-                agent.isStopped = true;
-                
-                // Establecer animación de ataque
-                SetAnimationState(false, false, true);
-                StartCoroutine(ResetAfterAttack());
+                // Intentar atacar si ha pasado el tiempo de enfriamiento
+                if (Time.time > lastAttackTime + attackCooldown)
+                {
+                    AttackPlayer();
+                }
             }
         }
         else if (currentState == State.Patrolling)
@@ -153,6 +165,34 @@ public class EnemyPatrol : MonoBehaviour
                 waitTimer = 0f;
             }
         }
+    }
+    
+    // Método para atacar al jugador
+    void AttackPlayer()
+    {
+        currentState = State.Attacking;
+        agent.isStopped = true;
+        
+        // Actualizar tiempo del último ataque
+        lastAttackTime = Time.time;
+        
+        // Establecer animación de ataque
+        SetAnimationState(false, false, true);
+        
+        // Reproducir sonido de ataque si existe
+        if (attackSound != null)
+        {
+            attackSound.Play();
+        }
+        
+        // Infligir daño al jugador si tiene el componente PlayerHealth
+        if (playerHealth != null)
+        {
+            playerHealth.TakeDamage(damageAmount);
+        }
+        
+        // Comenzar un breve periodo de enfriamiento después del ataque
+        StartCoroutine(ResetAfterAttack());
     }
     
     void GoToNextPatrolPoint()

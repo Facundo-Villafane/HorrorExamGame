@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class lightSwitch : MonoBehaviour
 {
-    public GameObject inttext, light;
+    public GameObject inttext, lightObject;
     public bool toggle = true, interactable;
     public Renderer lightBulb;
     public Material offlight, onlight;
@@ -41,12 +41,12 @@ public class lightSwitch : MonoBehaviour
         }
         if (toggle == false)
         {
-            light.SetActive(false);
+            lightObject.SetActive(false);
             lightBulb.material = offlight;
         }
         if (toggle == true)
         {
-            light.SetActive(true);
+            lightObject.SetActive(true);
             lightBulb.material = onlight;
         }
     }
