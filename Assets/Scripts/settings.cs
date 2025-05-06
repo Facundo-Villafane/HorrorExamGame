@@ -11,9 +11,9 @@ public class settings : MonoBehaviour
     public bool inGame;
     public GameObject chromaticCam, vignetteCam, grainCam;
     
-    // Nuevas variables para el check y regreso al menú de pausa
+    [Header("UI Navigation")]
     public GameObject checkMarkImage;     // La imagen de check que aparecerá
-    public GameObject pauseMenu;          // Referencia al menu de pausa
+    public GameObject previousMenu;       // Referencia al menú anterior (pausa o principal)
     public GameObject settingsMenu;       // Referencia a este menú de configuración
     public float checkDisplayTime = 1.0f; // Duración de la marca de verificación
     private Coroutine saveCoroutine;      // Para controlar la corrutina
@@ -26,6 +26,7 @@ public class settings : MonoBehaviour
             checkMarkImage.SetActive(false);
         }
         
+        // Inicializa la configuración por defecto si es la primera vez
         if (PlayerPrefs.GetInt("settingsSaved", 0) == 0)
         {
             PlayerPrefs.SetInt("graphics", 0);
@@ -36,7 +37,13 @@ public class settings : MonoBehaviour
             PlayerPrefs.SetInt("grain", 0);
         }
         
-        // El resto de tu código de inicio...
+        // Carga la configuración guardada
+        LoadSettings();
+    }
+    
+    // Método para cargar las configuraciones guardadas
+    private void LoadSettings()
+    {
         //Graphics
         if (PlayerPrefs.GetInt("graphics", 2) == 2)
         {
@@ -76,7 +83,7 @@ public class settings : MonoBehaviour
         if (PlayerPrefs.GetInt("chromatic", 1) == 1)
         {
             chromaticToggle.isOn = false;
-            if (inGame == true)
+            if (inGame == true && chromaticCam != null)
             {
                 chromaticCam.SetActive(false);
             }
@@ -84,7 +91,7 @@ public class settings : MonoBehaviour
         if (PlayerPrefs.GetInt("chromatic", 0) == 0)
         {
             chromaticToggle.isOn = true;
-            if (inGame == true)
+            if (inGame == true && chromaticCam != null)
             {
                 chromaticCam.SetActive(true);
             }
@@ -93,7 +100,7 @@ public class settings : MonoBehaviour
         if (PlayerPrefs.GetInt("vignette", 1) == 1)
         {
             vignetteToggle.isOn = false;
-            if (inGame == true)
+            if (inGame == true && vignetteCam != null)
             {
                 vignetteCam.SetActive(false);
             }
@@ -101,7 +108,7 @@ public class settings : MonoBehaviour
         if (PlayerPrefs.GetInt("vignette", 0) == 0)
         {
             vignetteToggle.isOn = true;
-            if (inGame == true)
+            if (inGame == true && vignetteCam != null)
             {
                 vignetteCam.SetActive(true);
             }
@@ -110,7 +117,7 @@ public class settings : MonoBehaviour
         if (PlayerPrefs.GetInt("grain", 1) == 1)
         {
             grainToggle.isOn = false;
-            if (inGame == true)
+            if (inGame == true && grainCam != null)
             {
                 grainCam.SetActive(false);
             }
@@ -118,7 +125,7 @@ public class settings : MonoBehaviour
         if (PlayerPrefs.GetInt("grain", 0) == 0)
         {
             grainToggle.isOn = true;
-            if (inGame == true)
+            if (inGame == true && grainCam != null)
             {
                 grainCam.SetActive(true);
             }
@@ -153,23 +160,28 @@ public class settings : MonoBehaviour
         {
             checkMarkImage.SetActive(true);
             
-            // Iniciar la corrutina para volver al menú de pausa
-            // Y guardar la referencia para poder detenerla si es necesario
+            // Iniciar la corrutina para volver al menú anterior
             if (saveCoroutine != null)
             {
                 StopCoroutine(saveCoroutine);
             }
-            saveCoroutine = StartCoroutine(ReturnToPauseMenu());
+            saveCoroutine = StartCoroutine(ReturnToPreviousMenu());
         }
         else
         {
-            // Si no hay marca de verificación, volver inmediatamente al menú de pausa
-            ReturnToPause();
+            // Si no hay marca de verificación, volver inmediatamente al menú anterior
+            ReturnToPrevious();
         }
     }
     
-    // Corrutina para mostrar la marca y volver al menú de pausa
-    IEnumerator ReturnToPauseMenu()
+    // Método para volver directamente al menú anterior sin guardar
+    public void backButton()
+    {
+        ReturnToPrevious();
+    }
+    
+    // Corrutina para mostrar la marca y volver al menú anterior
+    IEnumerator ReturnToPreviousMenu()
     {
         // Esperar el tiempo especificado mientras se muestra la marca
         yield return new WaitForSeconds(checkDisplayTime);
@@ -180,26 +192,28 @@ public class settings : MonoBehaviour
             checkMarkImage.SetActive(false);
         }
         
-        // Volver al menú de pausa
-        ReturnToPause();
+        // Volver al menú anterior
+        ReturnToPrevious();
         
         // Limpiar la referencia a la corrutina
         saveCoroutine = null;
     }
     
-    // Método para volver al menú de pausa
-    void ReturnToPause()
+    // Método para volver al menú anterior
+    void ReturnToPrevious()
     {
-        if (pauseMenu != null && settingsMenu != null)
+        if (previousMenu != null && settingsMenu != null)
         {
             settingsMenu.SetActive(false);
-            pauseMenu.SetActive(true);
+            previousMenu.SetActive(true);
+        }
+        else
+        {
+            Debug.LogWarning("El menú anterior o el menú de configuración no están asignados. Verifica las referencias en el Inspector.");
         }
     }
     
-    // El resto de tus métodos sin cambios...
-    // (setGraphics, setResolution, setVolume, toggleChromatic, toggleVignette, toggleGrain)
-    
+    // Resto de los métodos...
     public void setGraphics()
     {
         if (graphicsDrop.value == 0)
@@ -260,7 +274,7 @@ public class settings : MonoBehaviour
         {
             PlayerPrefs.SetInt("chromatic", 1);
             PlayerPrefs.Save();
-            if (inGame == true)
+            if (inGame == true && chromaticCam != null)
             {
                 chromaticCam.SetActive(false);
             }
@@ -269,7 +283,7 @@ public class settings : MonoBehaviour
         {
             PlayerPrefs.SetInt("chromatic", 0);
             PlayerPrefs.Save();
-            if (inGame == true)
+            if (inGame == true && chromaticCam != null)
             {
                 chromaticCam.SetActive(true);
             }
@@ -282,7 +296,7 @@ public class settings : MonoBehaviour
         {
             PlayerPrefs.SetInt("vignette", 1);
             PlayerPrefs.Save();
-            if (inGame == true)
+            if (inGame == true && vignetteCam != null)
             {
                 vignetteCam.SetActive(false);
             }
@@ -291,7 +305,7 @@ public class settings : MonoBehaviour
         {
             PlayerPrefs.SetInt("vignette", 0);
             PlayerPrefs.Save();
-            if (inGame == true)
+            if (inGame == true && vignetteCam != null)
             {
                 vignetteCam.SetActive(true);
             }
@@ -304,7 +318,7 @@ public class settings : MonoBehaviour
         {
             PlayerPrefs.SetInt("grain", 1);
             PlayerPrefs.Save();
-            if (inGame == true)
+            if (inGame == true && grainCam != null)
             {
                 grainCam.SetActive(false);
             }
@@ -313,7 +327,7 @@ public class settings : MonoBehaviour
         {
             PlayerPrefs.SetInt("grain", 0);
             PlayerPrefs.Save();
-            if (inGame == true)
+            if (inGame == true && grainCam != null)
             {
                 grainCam.SetActive(true);
             }

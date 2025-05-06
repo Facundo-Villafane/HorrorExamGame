@@ -59,7 +59,7 @@ public class pause : MonoBehaviour
     {
         Time.timeScale = 1;
         AudioListener.pause = false;
-        SceneManager.LoadScene(sceneName);
+        SceneManager.LoadScene("menu");
     }
     public void quitToDesktop()
     {

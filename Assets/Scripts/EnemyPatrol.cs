@@ -15,6 +15,7 @@ public class EnemyPatrol : MonoBehaviour
     // Configuración de comportamiento
     public float patrolSpeed = 3f;
     public float chaseSpeed = 5f;
+    public float fleeSpeed = 7f; // Nueva velocidad para huir
     public float attackRange = 2f;
     public float detectionRange = 10f;
     public float waitTimeAtPoint = 2f;
@@ -24,15 +25,17 @@ public class EnemyPatrol : MonoBehaviour
     public float attackCooldown = 1.5f;
     private float lastAttackTime = 0f;
     public AudioSource attackSound;
+    public AudioSource hurtSound; // Sonido para cuando recibe daño
     
     // Estado actual
-    private enum State { Patrolling, Chasing, Attacking, Waiting }
+    private enum State { Patrolling, Chasing, Attacking, Waiting, Fleeing } // Añadido estado Fleeing
     private State currentState;
     
     // Variables de control
     private int currentPatrolIndex = 0;
     private Transform player;
     private float waitTimer = 0f;
+    private Coroutine fleeCoroutine; // Referencia a la corrutina de huida
     
     // Referencia al script de salud del jugador
     private PlayerHealth playerHealth;
@@ -78,12 +81,15 @@ public class EnemyPatrol : MonoBehaviour
     
     void Update()
     {
+        // Si estamos huyendo, saltarse toda la lógica normal
+        if (currentState == State.Fleeing)
+            return;
+            
         // Si no hay referencia al jugador, no podemos continuar
         if (player == null)
             return;
         
         // Comprobar si estamos realmente moviéndonos
-        // Esto soluciona el problema de las animaciones saltando
         bool isActuallyMoving = agent.velocity.magnitude > 0.15f;
         
         // Actualizar animación basada en el movimiento actual
@@ -195,6 +201,89 @@ public class EnemyPatrol : MonoBehaviour
         StartCoroutine(ResetAfterAttack());
     }
     
+    // Nuevo método para huir del jugador cuando recibe daño
+    public void FleeFromPlayer(float duration)
+    {
+        // Cancelar la huida anterior si está en curso
+        //if (fleeCoroutine != null)
+        //    StopCoroutine(fleeCoroutine);
+            
+        // Iniciar nueva huida
+        //fleeCoroutine = StartCoroutine(FleeCoroutine(duration));
+    }
+    
+    // Corrutina para manejar el comportamiento de huida
+    private IEnumerator FleeCoroutine(float duration)
+    {
+        if (agent == null || player == null)
+            yield break;
+            
+        // Guardar el estado actual para restaurarlo después
+        State previousState = currentState;
+        
+        // Cambiar al estado de huida
+        currentState = State.Fleeing;
+        
+        // Calcular dirección de huida (opuesta al jugador)
+        Vector3 fleeDirection = transform.position - player.position;
+        fleeDirection.y = 0; // Mantener en el mismo plano
+        fleeDirection.Normalize();
+        
+        // Establecer destino de huida (alejarse del jugador)
+        Vector3 fleeDestination = transform.position + fleeDirection * 15f;
+        
+        // Intentar encontrar un punto válido en el NavMesh
+        NavMeshHit hit;
+        if (NavMesh.SamplePosition(fleeDestination, out hit, 15f, NavMesh.AllAreas))
+        {
+            fleeDestination = hit.position;
+        }
+        
+        // Configurar el agente de navegación
+        agent.isStopped = false;
+        agent.speed = fleeSpeed;
+        agent.SetDestination(fleeDestination);
+        
+        // Actualizar animación a "corriendo"
+        SetAnimationState(false, true, false);
+        
+        // Reproducir sonido de dolor si existe
+        if (hurtSound != null)
+        {
+            hurtSound.Play();
+        }
+        
+        // Esperar la duración especificada
+        yield return new WaitForSeconds(duration);
+        
+        // Restaurar el estado anterior
+        if (previousState == State.Patrolling || previousState == State.Waiting)
+        {
+            currentState = State.Patrolling;
+            GoToNextPatrolPoint();
+        }
+        else if (previousState == State.Chasing)
+        {
+            float distanceToPlayer = Vector3.Distance(transform.position, player.position);
+            
+            if (distanceToPlayer <= detectionRange)
+            {
+                currentState = State.Chasing;
+                agent.speed = chaseSpeed;
+                agent.SetDestination(player.position);
+                SetAnimationState(false, true, false);
+            }
+            else
+            {
+                currentState = State.Patrolling;
+                GoToNextPatrolPoint();
+            }
+        }
+        
+        // Limpiar la referencia a la corrutina
+        fleeCoroutine = null;
+    }
+    
     void GoToNextPatrolPoint()
     {
         // Incrementar el índice de patrulla
@@ -241,8 +330,6 @@ public class EnemyPatrol : MonoBehaviour
     // Método para establecer las animaciones
     void SetAnimationState(bool isIdle, bool isChasing, bool isAttacking)
     {
-        // Utilizar transiciones para evitar saltos en la animación
-        
         // Solo cambiar los estados si realmente son diferentes de los actuales
         bool idleChanged = animator.GetBool("isIdle") != isIdle;
         bool chasingChanged = animator.GetBool("isChasing") != isChasing;
@@ -254,6 +341,9 @@ public class EnemyPatrol : MonoBehaviour
             animator.SetBool("isIdle", isIdle);
             animator.SetBool("isChasing", isChasing);
             animator.SetBool("isAttacking", isAttacking);
+            
+            // Si tienes un parámetro para huir, manejarlo aquí
+            // animator.SetBool("isFleeing", currentState == State.Fleeing);
         }
     }
     
@@ -288,6 +378,16 @@ public class EnemyPatrol : MonoBehaviour
                     }
                 }
             }
+        }
+    }
+    
+    // Limpiar las corrutinas al desactivar el GameObject
+    void OnDisable()
+    {
+        if (fleeCoroutine != null)
+        {
+            StopCoroutine(fleeCoroutine);
+            fleeCoroutine = null;
         }
     }
 }
